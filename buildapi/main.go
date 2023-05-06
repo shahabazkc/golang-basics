@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -32,6 +33,24 @@ func (c *Course) IsEmpty() bool {
 
 func main() {
 	fmt.Println("Welcome to mymodules")
+	r := mux.NewRouter()
+	courses = append(courses, Course{
+		CourseId:    "2",
+		CourseName:  "js",
+		CoursePrice: 120,
+		Author:      &Author{Fullname: "shahabaz", Website: "hello.com"},
+	})
+
+	//routing
+	r.HandleFunc("/", serverHome).Methods("GET")
+	r.HandleFunc("/courses", getAllCources).Methods("GET")
+	r.HandleFunc("/course/{id}", getOneCourse).Methods("GET")
+	r.HandleFunc("/course/{id}", updateCourse).Methods("PUT")
+	r.HandleFunc("/course", createCourse).Methods("POST")
+	r.HandleFunc("/course/{id}", deleteCourse).Methods("DELETE")
+
+	// listen to a port
+	log.Fatal(http.ListenAndServe(":4000", r))
 }
 
 func serverHome(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +76,6 @@ func getOneCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	json.NewEncoder(w).Encode("Course not found")
-	return
 }
 
 func createCourse(w http.ResponseWriter, r *http.Request) {
@@ -77,11 +95,19 @@ func createCourse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check only if title is duplicate
+	for index, item := range courses {
+		if item.CourseName == course.CourseName && index >= 0 {
+			json.NewEncoder(w).Encode("Course Already exist")
+			return
+		}
+	}
+
 	// generate a unique id
 	rand.Seed(time.Now().UnixNano())
 	course.CourseId = strconv.Itoa(rand.Intn(1000000))
 
-	courses = append(courses, Course{})
+	courses = append(courses, course)
 	json.NewEncoder(w).Encode(courses)
 }
 
@@ -101,7 +127,6 @@ func updateCourse(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	json.NewEncoder(w).Encode("Course not found")
-	return
 }
 
 func deleteCourse(w http.ResponseWriter, r *http.Request) {
@@ -112,11 +137,9 @@ func deleteCourse(w http.ResponseWriter, r *http.Request) {
 		if item.CourseId == params["id"] {
 			courses = append(courses[:index], courses[index+1:]...)
 			json.NewEncoder(w).Encode(courses)
-			break
 			return
 		}
 	}
 
 	json.NewEncoder(w).Encode("Course not found")
-	return
 }
